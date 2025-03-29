@@ -13,12 +13,14 @@ class Character:
         self.inventory = []  # Adding inventory to hold items
         self.morality = 0  # 0 is neutral, +1 is good, -1 is evil
         self.faction = faction  # Faction alignment (e.g., 'Neutral', 'Dark', 'Light')
+        self.occult_knowledge = 0  # New occult knowledge stat
 
     def display_stats(self):
         print(f"\n{self.name}'s Stats:")
         print(f"Strength: {self.strength} | Intelligence: {self.intelligence} | Charisma: {self.charisma} | Leadership: {self.leadership}")
         print(f"Health: {self.health} | Morale: {self.morale} | Morality: {'Good' if self.morality > 0 else 'Evil' if self.morality < 0 else 'Neutral'} | Faction: {self.faction}")
         print(f"Inventory: {', '.join([item.name for item in self.inventory]) if self.inventory else 'Empty'}")
+        print(f"Occult Knowledge: {self.occult_knowledge}/5")  # Display occult knowledge
 
     def add_to_inventory(self, item):
         self.inventory.append(item)
@@ -40,6 +42,32 @@ class Character:
     def update_faction(self, faction_choice):
         self.faction = faction_choice
 
+    def gain_occult_knowledge(self):
+        if self.occult_knowledge < 5:
+            self.occult_knowledge += 1
+            print(f"{self.name} has gained occult knowledge. Current level: {self.occult_knowledge}/5.")
+        else:
+            print(f"{self.name} already possesses full occult knowledge.")
+
+# Location Class
+class Location:
+    def __init__(self, name, description, linked_locations=[]):
+        self.name = name
+        self.description = description
+        self.linked_locations = linked_locations  # New linked locations
+
+    def explore(self):
+        print(f"\n{self.name}: {self.description}")
+        if not self.linked_locations:
+            print("No other locations to visit.")
+        else:
+            for idx, location in enumerate(self.linked_locations, 1):
+                print(f"{idx}. {location.name}")
+
+    def add_linked_location(self, location):
+        self.linked_locations.append(location)
+
+# NPC Class
 class NPC(Character):
     def __init__(self, name, strength, intelligence, charisma, leadership, role, faction=None):
         super().__init__(name, strength, intelligence, charisma, leadership, faction)
@@ -55,24 +83,7 @@ class NPC(Character):
             print(f"\n{self.name}: 'You refuse me? Very well, but you make an enemy today.'")
             player.update_morality("evil")
 
-
-class Enemy(Character):
-    def __init__(self, name, strength, intelligence, charisma, leadership, myth_type, faction=None):
-        super().__init__(name, strength, intelligence, charisma, leadership, faction)
-        self.myth_type = myth_type  # Vampire, werewolf, etc.
-
-    def attack(self, target):
-        damage = random.randint(5, 15)
-        target.health -= damage
-        print(f"{self.name} attacks {target.name} for {damage} damage!")
-
-    def special_attack(self, target):
-        # Implementing magic or special ability attack
-        damage = random.randint(15, 30) + self.intelligence
-        target.health -= damage
-        print(f"{self.name} uses a special attack on {target.name} for {damage} damage!")
-
-
+# Item Class
 class Item:
     def __init__(self, name, effect, value):
         self.name = name
@@ -86,16 +97,8 @@ class Item:
         elif self.effect == 'buff':
             target.strength += self.value
             target.intelligence += self.value
-
-
-class Location:
-    def __init__(self, name, description):
-        self.name = name
-        self.description = description
-
-    def explore(self):
-        print(f"\n{self.name}: {self.description}")
-
+        elif self.effect == 'occult':
+            target.gain_occult_knowledge()
 
 # Combat Mechanism
 def battle(player, enemy):
@@ -128,12 +131,10 @@ def battle(player, enemy):
         return False  # Player lost
     return True  # Player won
 
-
 def player_attack(player, enemy):
     damage = random.randint(10, 20) + player.strength
     enemy.health -= damage
     print(f"\n{player.name} attacks {enemy.name} for {damage} damage!")
-
 
 def special_attack(player, enemy):
     # Special attack based on player intelligence or item
@@ -141,12 +142,10 @@ def special_attack(player, enemy):
     enemy.health -= damage
     print(f"\n{player.name} uses a special attack on {enemy.name} for {damage} damage!")
 
-
 def enemy_attack(player, enemy):
     damage = random.randint(10, 20) + enemy.strength
     player.health -= damage
     print(f"{enemy.name} attacks {player.name} for {damage} damage!")
-
 
 # Side Quests with Moral Dilemmas
 def side_quest(player):
@@ -160,7 +159,6 @@ def side_quest(player):
     else:
         print("\nYou ignore the traveler, leaving them to fend for themselves.")
         player.update_morality("evil")
-
 
 # Faction System
 class Faction:
@@ -181,7 +179,6 @@ class Faction:
         else:
             print(f"\nYou reject the offer of {self.name}. The faction grows hostile toward you.")
 
-
 # Story Progression
 def check_story_progression(player):
     if player.morality > 2:
@@ -191,7 +188,7 @@ def check_story_progression(player):
     else:
         print("\nYou remain neutral, walking the fine line between factions, not yet fully trusted.")
 
-# Main Game
+# Main Game Loop
 def main():
     print("Welcome to Shadows of the Balkans!\n")
 
@@ -204,65 +201,28 @@ def main():
     forest = Location("Haunted Forest", "A dense, eerie forest, rumored to be home to ancient spirits.")
     ruins = Location("Ancient Ruins", "Ruins of a forgotten kingdom, filled with old magic and untold secrets.")
     
-    locations = [village, forest, ruins]
+    # Adding linked locations to the regions
+    village.add_linked_location(forest)
+    village.add_linked_location(ruins)
+    forest.add_linked_location(village)
+    ruins.add_linked_location(village)
 
-    # Factions
-    light_faction = Faction("Light", "good")
-    dark_faction = Faction("Dark", "evil")
-    neutral_faction = Faction("Neutral", "neutral")
+    current_location = village  # Start at the War-Torn Village
 
-    factions = [light_faction, dark_faction, neutral_faction]
-
-    # Enemy Encounter
-    vampire = Enemy("Vampire Lord", strength=15, intelligence=12, charisma=10, leadership=11, myth_type="Vampire")
-    werewolf = Enemy("Werewolf Pack", strength=20, intelligence=8, charisma=6, leadership=5, myth_type="Werewolf")
-    
-    enemies = [vampire, werewolf]
-
-    # Add items to player's inventory
-    health_potion = Item('Health Potion', 'heal', 20)
-    player.add_to_inventory(health_potion)
-
-    # Start Game Loop
     while player.health > 0:
-        print("\nWhere do you want to go?")
-        for i, location in enumerate(locations, 1):
-            print(f"{i}. {location.name}")
-        choice = input("Choose location (1, 2, or 3): ")
+        current_location.explore()  # Explore current location
+        choice = input(f"Choose location to travel to (1-{len(current_location.linked_locations)}): ")
 
-        if choice == '1':
-            village.explore()
-            if random.random() < 0.5:  # Random chance for battle
-                print("\nAn enemy appears!")
-                if not battle(player, random.choice(enemies)):
-                    break  # Player lost, stop game
-            side_quest(player)  # Side quest event after exploring
-        elif choice == '2':
-            forest.explore()
-            if random.random() < 0.5:  # Random chance for battle
-                print("\nAn enemy appears!")
-                if not battle(player, random.choice(enemies)):
-                    break  # Player lost, stop game
-            light_faction.offer_ally(player)  # Faction event after exploring
-        elif choice == '3':
-            ruins.explore()
-            if random.random() < 0.5:  # Random chance for battle
-                print("\nAn enemy appears!")
-                if not battle(player, random.choice(enemies)):
-                    break  # Player lost, stop game
-            dark_faction.offer_ally(player)  # Faction event after exploring
-        else:
-            print("Invalid choice.")
-        
-        check_story_progression(player)  # Check how the story progresses based on the player's morality and faction alignment
-        
-        # Check player's health after the turn
-        if player.health <= 0:
-            print(f"\n{player.name} has been defeated. Game over.")
-            break
+        try:
+            chosen_location = current_location.linked_locations[int(choice) - 1]  # Adjust index
+            current_location = chosen_location  # Move to the chosen location
+            print(f"\nYou've arrived at the {current_location.name}.")
+        except (ValueError, IndexError):
+            print("Invalid choice. Try again.")
 
-    print("Game over.")
+        check_story_progression(player)  # Display current story progress
 
+        side_quest(player)  # Randomly offer a side quest
 
 if __name__ == "__main__":
     main()
